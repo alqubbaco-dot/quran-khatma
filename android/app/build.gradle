@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+}
+
+def runNumber = Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+// مفتاح التوقيع السري يجي من GitHub Secrets (ما ينحفظ بالمستودع)
+def releaseKeystore = System.getenv('ANDROID_KEYSTORE_PATH')
+def releasePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+
+android {
+    namespace 'com.jabbar.qurankhatma'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.jabbar.qurankhatma'
+        minSdk 24
+        targetSdk 36
+        versionCode runNumber
+        versionName "1.0.${runNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (releaseKeystore && releasePassword) {
+                storeFile file(releaseKeystore)
+                storePassword releasePassword
+                keyAlias 'quran-release'
+                keyPassword releasePassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (releaseKeystore && releasePassword) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+}

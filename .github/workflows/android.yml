@@ -1,0 +1,80 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      # مفتاح التوقيع السري: لازم يكون مضاف بإعدادات المستودع (Secrets) قبل البناء
+      - name: Prepare signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.QURAN_KEYSTORE_BASE64 }}
+          KEYSTORE_PW: ${{ secrets.QURAN_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PW" ]; then
+            echo "::error title=مفتاح التوقيع غير موجود::أضف QURAN_KEYSTORE_BASE64 و QURAN_KEYSTORE_PASSWORD في Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+
+      # نسخ ملفات التطبيق (المصحف والصفحات) داخل تطبيق الأندرويد حتى يشتغل بدون إنترنت
+      - name: Copy web app into Android assets
+        run: |
+          W=android/app/src/main/assets/www
+          mkdir -p "$W"
+          cp index.html app.js adhkar.js quran-text.js quran-search.js icons.css manifest.webmanifest privacy.html "$W"/
+          cp -r fonts icons adhkar-audio "$W"/
+
+      - name: Build APK and AAB
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.QURAN_KEYSTORE_PASSWORD }}
+        run: |
+          set -o pipefail
+          gradle assembleRelease bundleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Report build error
+        if: failure()
+        working-directory: android
+        run: |
+          [ -f build.log ] || exit 0
+          msg=$(grep -E "error:|What went wrong|e: |Could not|FAILED|failed" -A4 build.log | grep -v "^--$" | head -70 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::error title=Gradle build failed::${msg}"
+
+      # quran.apk = للتنصيب المباشر على الموبايل للتجربة، quran-play.aab = للرفع على Google Play
+      - name: Rename outputs
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk quran.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab quran-play.aab
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v${{ github.run_number }}
+          name: القرآن الكريم — نسخة أندرويد ${{ github.run_number }}
+          body: |
+            quran.apk: للتنصيب المباشر على موبايل أندرويد للتجربة.
+            quran-play.aab: للرفع على Google Play Console.
+          make_latest: true
+          files: |
+            quran.apk
+            quran-play.aab

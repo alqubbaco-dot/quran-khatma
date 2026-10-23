@@ -443,5 +443,5 @@ document.addEventListener('keydown',e=>{
     $('appVersion').textContent=APP_VERSION;
     applyTheme(); initReciters(); renderParts(); renderKhatma(); renderContinue(); render();
     history.replaceState({v:null},'');
-    if('serviceWorker' in navigator && location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+    if('serviceWorker' in navigator && location.protocol==='https:' && location.hostname!=='appassets.androidplatform.net'){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 })();
