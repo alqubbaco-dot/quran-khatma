@@ -1,0 +1,19 @@
+{
+  "name": "القرآن الكريم - ختمة",
+  "short_name": "القرآن الكريم",
+  "description": "مصحف كامل يعمل بدون إنترنت مع التلاوة والختمة والأذكار",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "ar",
+  "theme_color": "#1B6B3A",
+  "background_color": "#FAF6F0",
+  "categories": ["books", "education", "lifestyle"],
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

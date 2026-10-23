@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1B6B3A">
+    <meta name="description" content="مصحف كامل يعمل بدون إنترنت، مع التلاوة والختمة والأجزاء والأذكار. مجاني وبدون إعلانات.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>القرآن الكريم</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="icons.css">
+    <style>
+        @font-face{font-family:'Amiri Quran';src:url('fonts/AmiriQuran-Regular.ttf') format('truetype');font-display:swap}
+        @font-face{font-family:'Noto Naskh Arabic';src:url('fonts/NotoNaskhArabic.ttf') format('truetype');font-weight:400 700;font-display:swap}
+        :root{
+            --bg:#FAF6F0;--bg2:#F0E8DA;--fg:#2C1810;--fg2:#7A6B5D;
+            --ac:#1B6B3A;--ac2:#2A9D54;--acg:rgba(27,107,58,.12);
+            --gd:#C4952A;--gd2:#E8C56D;--cd:#FFFFFF;--cd2:#FFFDF8;
+            --bd:#E4D9C8;--sh:rgba(44,24,16,.08);--sh2:rgba(44,24,16,.15);
+            --vhl:rgba(196,149,42,.12);--tbg:#2C1810;--tfg:#FAF6F0;
+            --orn:#C4952A;--ok:#27AE60;--err:#C0392B;--fs:24px;--lh:2.4;
+        }
+        [data-theme="dark"]{
+            --bg:#0D1A12;--bg2:#081210;--fg:#E8E0D4;--fg2:#9A8B7D;
+            --ac:#3DBB6A;--ac2:#5ED88A;--acg:rgba(61,187,106,.12);
+            --gd:#E8C56D;--gd2:#F0D98A;--cd:#142820;--cd2:#1A3328;
+            --bd:#2A4035;--sh:rgba(0,0,0,.25);--sh2:rgba(0,0,0,.4);
+            --vhl:rgba(232,197,109,.08);--tbg:#E8E0D4;--tfg:#0D1A12;
+            --orn:#E8C56D;--ok:#2ECC71;--err:#E74C3C;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Noto Naskh Arabic',serif;background:var(--bg);color:var(--fg);
+             min-height:100vh;transition:background .4s,color .4s;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+        body::before{content:'';position:fixed;inset:0;
+            background:radial-gradient(ellipse at 20% 0%,var(--acg) 0%,transparent 50%),
+            radial-gradient(ellipse at 80% 100%,rgba(196,149,42,.06) 0%,transparent 50%);pointer-events:none;z-index:0}
+        .app{position:relative;z-index:1;max-width:920px;margin:0 auto;padding:0 16px 20px}
+        .hidden{display:none!important}
+
+        header{text-align:center;padding:36px 0 16px}
+        .orn{width:200px;height:2px;margin:10px auto;background:linear-gradient(90deg,transparent,var(--orn),transparent);position:relative}
+        .orn::before{content:'۞';position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);color:var(--orn);font-size:20px;line-height:1;background:var(--bg);padding:0 12px;font-family:'Amiri Quran',serif}
+        h1{font-family:'Amiri Quran',serif;font-size:clamp(34px,7vw,56px);font-weight:400;color:var(--gd);letter-spacing:2px}
+        .sub{color:var(--fg2);font-size:14px;margin-top:6px}
+
+        .ctrls{display:flex;justify-content:center;gap:8px;margin:18px 0 20px;flex-wrap:wrap}
+        .cb{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:1.5px solid var(--bd);
+            border-radius:50px;background:var(--cd);color:var(--fg);font-family:inherit;font-size:13px;
+            cursor:pointer;transition:all .3s;box-shadow:0 1px 4px var(--sh)}
+        .cb:hover{border-color:var(--ac);color:var(--ac);box-shadow:0 2px 12px var(--acg)}
+        .cb.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+        .cb.gd{border-color:var(--gd);color:var(--gd)}
+        .cb.gd:hover{background:var(--gd);color:#fff}
+
+        .srch{position:relative;margin-bottom:20px}
+        .srch input{width:100%;padding:13px 48px 13px 20px;border:1.5px solid var(--bd);border-radius:14px;
+            background:var(--cd);color:var(--fg);font-family:inherit;font-size:15px;outline:none;
+            transition:all .3s;box-shadow:0 2px 8px var(--sh)}
+        .srch input:focus{border-color:var(--ac);box-shadow:0 2px 20px var(--acg)}
+        .srch input::placeholder{color:var(--fg2);opacity:.6}
+        .srch>i{position:absolute;right:16px;top:50%;transform:translateY(-50%);color:var(--fg2);font-size:15px}
+        .search-tabs{display:flex;gap:7px;margin:-10px 0 16px;justify-content:center;flex-wrap:wrap}
+        .search-tab{border:1px solid var(--bd);background:var(--cd);color:var(--fg2);border-radius:20px;padding:6px 13px;font-family:inherit;font-size:12px;cursor:pointer}
+        .search-tab.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+        .search-results{display:none;margin-bottom:20px}.search-results.show{display:block}
+        .search-result{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:13px 15px;margin-bottom:9px;cursor:pointer;box-shadow:0 2px 8px var(--sh);transition:.2s}
+        .search-result:hover{border-color:var(--ac)}
+        .search-result .sr-meta{color:var(--gd);font-size:12px;font-weight:700;margin-bottom:5px}
+        .search-result .sr-text{font-family:'Amiri Quran',serif;font-size:19px;line-height:2;color:var(--fg)}
+        .search-note{color:var(--fg2);font-size:12px;text-align:center;padding:25px 10px}
+
+        .offline-note{margin:8px 0 14px;padding:9px 12px;border:1px solid var(--gd2);border-radius:11px;background:var(--cd);color:var(--gd);font-size:12px;text-align:center}
+
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+        .sc{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--cd);
+            border:1px solid var(--bd);border-radius:12px;cursor:pointer;transition:all .3s;
+            box-shadow:0 1px 4px var(--sh);position:relative;overflow:hidden;animation:fi .3s ease-out backwards}
+        .sc:hover{transform:translateY(-2px);box-shadow:0 6px 24px var(--sh2);border-color:var(--ac)}
+        .sn{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--ac),var(--ac2));
+            display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0}
+        .si{flex:1;min-width:0}
+        .snn{font-family:'Amiri Quran',serif;font-size:19px;color:var(--fg);line-height:1.5}
+        .sm{font-size:11px;color:var(--fg2);margin-top:1px;display:flex;align-items:center;gap:8px}
+        .sm .ck{color:var(--ok)}
+        .sa{display:flex;gap:4px;flex-shrink:0}
+        .sa button{width:34px;height:34px;border-radius:8px;border:1px solid var(--bd);background:transparent;
+            color:var(--fg2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .sa button:hover{background:var(--ac);color:#fff;border-color:var(--ac)}
+        .sa button.bk{color:var(--gd);border-color:var(--gd)}
+
+        #reader{display:none}
+        .rh{display:flex;align-items:center;gap:10px;padding:14px 0;margin-bottom:6px;border-bottom:1px solid var(--bd)}
+        .rb{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--bd);background:var(--cd);
+            color:var(--fg);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s;flex-shrink:0}
+        .rb:hover{background:var(--ac);color:#fff;border-color:var(--ac)}
+        .rt{flex:1;text-align:center;min-width:0}
+        .rt h2{font-family:'Amiri Quran',serif;font-size:24px;color:var(--gd);font-weight:400}
+        .rt p{font-size:12px;color:var(--fg2)}
+        .ra{display:flex;gap:6px}
+
+        .bism{text-align:center;font-family:'Amiri Quran',serif;font-size:30px;color:var(--gd);padding:28px 0 18px}
+        .bism::after{content:'';display:block;width:120px;height:1.5px;
+            background:linear-gradient(90deg,transparent,var(--gd),transparent);margin:12px auto 0}
+
+        .vs{padding:8px 0 30px;line-height:var(--lh);font-size:var(--fs);font-family:'Amiri Quran',serif;text-align:justify}
+        .vv{cursor:pointer;transition:background .2s;border-radius:4px;padding:1px 2px}
+        .vv:hover{background:var(--vhl)}
+        .vv.reading{background:var(--vhl);border-radius:8px;padding:2px 5px;box-shadow:inset 0 0 0 1px var(--gd2)}
+        .vv.now{background:var(--acg);border-radius:8px;box-shadow:inset 0 0 0 1px var(--ac)}
+        .vn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+            font-size:10px;font-family:'Noto Naskh Arabic',sans-serif;color:var(--gd);
+            position:relative;vertical-align:middle;margin:0 3px}
+        .vn svg{position:absolute;inset:0;width:100%;height:100%}
+        .vn span{position:relative;z-index:1;font-weight:600}
+
+        .ap{display:none;margin:16px 0;padding:14px;background:var(--cd);border:1px solid var(--bd);border-radius:12px;box-shadow:0 2px 12px var(--sh)}
+        .ap.show{display:block}
+        .ap audio{width:100%;height:38px;border-radius:8px}
+        .apl{font-size:12px;color:var(--fg2);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+        .apl i{color:var(--gd)}
+        .ap select{flex:1;min-width:190px;padding:8px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--fg);font-family:inherit}
+
+        .em{text-align:center;padding:50px 20px;color:var(--fg2)}
+        .em i{font-size:44px;margin-bottom:14px;display:block;margin-inline:auto;opacity:.3}
+
+        .bot{position:fixed;bottom:0;left:0;right:0;background:var(--cd);border-top:1px solid var(--bd);
+            padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:none;justify-content:center;align-items:center;gap:14px;z-index:100;
+            box-shadow:0 -4px 20px var(--sh2);flex-wrap:wrap}
+        .bot.show{display:flex}
+        body.reading .app{padding-bottom:90px}
+        .fc{display:flex;align-items:center;gap:6px}
+        .fc button{width:34px;height:34px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);
+            color:var(--fg);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .fc span{font-size:12px;color:var(--fg2);min-width:28px;text-align:center}
+        .nb{padding:8px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);
+            color:var(--fg);font-family:inherit;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px}
+
+        .tst{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);
+            background:var(--tbg);color:var(--tfg);padding:11px 22px;border-radius:12px;
+            font-family:inherit;font-size:13px;z-index:200;opacity:0;pointer-events:none;
+            transition:all .4s;box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:90vw;text-align:center}
+        .tst.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .ply{background:var(--gd)!important;color:#fff!important;border-color:var(--gd)!important;animation:pg 1.5s infinite!important}
+        @keyframes pg{0%,100%{box-shadow:0 0 0 0 rgba(196,149,42,.4)}50%{box-shadow:0 0 0 8px rgba(196,149,42,0)}}
+
+        .continue-box{margin:0 0 14px;padding:13px 15px;border:1px solid var(--bd);background:var(--cd);border-radius:16px;box-shadow:0 6px 20px var(--sh);display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .continue-box .ct{display:flex;align-items:center;gap:10px;min-width:0}
+        .continue-box .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--acg);color:var(--ac);flex:none}
+        .continue-box strong{display:block;font-size:15px}.continue-box small{display:block;color:var(--fg2);font-size:12px;margin-top:2px}
+        .continue-box button{border:1px solid var(--ac);background:var(--ac);color:#fff;border-radius:11px;padding:8px 12px;font-family:inherit;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+
+        .khatma-box{margin:10px 0 14px;padding:14px 15px;border:1px solid var(--bd);border-radius:14px;background:var(--cd);box-shadow:0 2px 8px var(--sh)}
+        .khead{display:flex;align-items:center;justify-content:space-between;gap:10px}.khead strong{font-size:14px;display:flex;align-items:center;gap:6px}.khead small{color:var(--fg2);font-size:11px}
+        .ktrack{height:8px;border-radius:99px;background:var(--bd);overflow:hidden;margin:10px 0}.kfill{height:100%;width:0;background:var(--gd);transition:width .3s}
+        .kfoot{display:flex;align-items:center;justify-content:space-between;color:var(--fg2);font-size:11px}.kreset{border:0;background:none;color:var(--err);cursor:pointer;font-family:inherit}
+
+        .juz-box{margin:12px 0 14px;padding:14px;border:1px solid var(--bd);border-radius:14px;background:var(--cd);box-shadow:0 3px 12px var(--sh)}
+        .juz-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.juz-head strong{font-size:15px;display:flex;align-items:center;gap:6px}.juz-head small{color:var(--fg2)}
+        .section-tabs{display:flex;gap:7px;margin:0 0 10px}
+        .section-tab{flex:1;border:1px solid var(--bd);background:var(--bg);color:var(--fg);border-radius:10px;padding:8px;font-family:inherit;cursor:pointer}
+        .section-tab.on{background:var(--gd);color:#fff;border-color:var(--gd)}
+        .part-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;max-height:300px;overflow-y:auto;padding:2px}
+        .part-btn{border:1px solid var(--bd);background:var(--bg);color:var(--fg);border-radius:10px;padding:8px 3px;font-family:inherit;cursor:pointer;font-size:11px;min-width:0}
+        .part-btn:hover{border-color:var(--gd)}
+        .part-btn b{display:block;font-size:13px;margin-bottom:2px}
+        .part-btn span{display:block;color:var(--fg2);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+        .page{display:none;padding:8px 0 40px}.page.show{display:block}
+        .page-head{display:flex;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid var(--bd);margin-bottom:14px}
+        .page-head h2{font-family:'Amiri Quran',serif;color:var(--gd);font-size:27px;font-weight:400;flex:1;text-align:center}
+        .adhkar-tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+        .adhkar-tab{border:1px solid var(--bd);background:var(--cd);color:var(--fg);border-radius:12px;padding:11px 8px;font-family:inherit;cursor:pointer}
+        .adhkar-tab.on{background:var(--gd);color:#fff;border-color:var(--gd)}
+        .adhkar-card{background:var(--cd);border:1px solid var(--bd);border-radius:16px;padding:18px;margin:10px 0;box-shadow:0 3px 12px var(--sh);transition:opacity .3s}
+        .adhkar-card.done{opacity:.55}
+        .adhkar-card h3{font-family:'Noto Naskh Arabic',serif;font-size:17px;color:var(--gd);margin-bottom:10px}
+        .adhkar-text{font-family:'Noto Naskh Arabic',serif;font-size:21px;line-height:2.15;text-align:right}
+        .adhkar-text.quran{font-family:'Amiri Quran',serif;font-size:22px;line-height:2.3}
+        .adhkar-text .qsep{color:var(--gd);font-size:.8em;margin:0 4px}
+        .adhkar-source{color:var(--fg2);font-size:11px;margin-top:10px}
+        .adhkar-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:12px}
+        .adhkar-count{border:1.5px solid var(--gd);background:var(--vhl);color:var(--gd);border-radius:12px;padding:8px 14px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;min-width:120px}
+        .adhkar-count.zero{border-color:var(--ok);color:var(--ok)}
+        .adhkar-action{border:1px solid var(--bd);background:var(--bg);color:var(--fg);border-radius:10px;padding:8px 12px;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+        .adhkar-action:hover{background:var(--ac);color:#fff;border-color:var(--ac)}
+        .adhkar-action.playing{background:var(--gd);color:#fff;border-color:var(--gd)}
+        .adhkar-action[disabled]{opacity:.45;cursor:default;background:var(--bg);color:var(--fg2)}
+
+        .about p{font-size:14px;line-height:2;margin-bottom:10px}
+        .about h3{color:var(--gd);font-size:16px;margin:16px 0 6px}
+        .about a{color:var(--ac)}
+
+        .dedication{margin:28px auto 16px;padding:12px 18px;text-align:center;color:var(--gd);font-family:'Amiri Quran',serif;font-size:16px;line-height:1.9;border-top:1px solid var(--bd);max-width:720px}
+
+        @media(max-width:600px){
+            .grid{grid-template-columns:1fr}.ctrls{gap:5px}.cb{padding:7px 11px;font-size:12px}
+            h1{font-size:30px}.bot{gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom))}.nb span{display:none}.snn{font-size:17px}
+            .part-grid{grid-template-columns:repeat(4,1fr)}.adhkar-text{font-size:20px}
+        }
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    </style>
+</head>
+<body>
+<div class="app">
+    <div id="home">
+        <header>
+            <h1>القرآن الكريم</h1>
+            <div class="orn"></div>
+            <p class="sub">اقرأ وتدبّر كتاب الله عز وجل</p>
+        </header>
+
+        <div id="continueBox" class="continue-box hidden"></div>
+
+        <div class="khatma-box">
+            <div class="khead"><strong><i class="fas fa-book-quran"></i> ختمة القرآن</strong><small id="kcount">0 من 114 سورة</small></div>
+            <div class="ktrack"><div class="kfill" id="kfill"></div></div>
+            <div class="kfoot"><span id="kpercent">0%</span><button class="kreset" onclick="resetKhatma()">بدء ختمة جديدة</button></div>
+        </div>
+
+        <section class="juz-box" aria-label="الأجزاء والأحزاب">
+            <div class="juz-head"><strong><i class="fas fa-layer-group"></i> تقسيم المصحف</strong><small id="partCount">30 جزءًا</small></div>
+            <div class="section-tabs">
+                <button class="section-tab on" data-part="juz" onclick="setPart('juz')">الأجزاء</button>
+                <button class="section-tab" data-part="hizb" onclick="setPart('hizb')">الأحزاب</button>
+                <button class="section-tab" data-part="rub" onclick="setPart('rub')">الأرباع</button>
+            </div>
+            <div class="part-grid" id="partGrid"></div>
+        </section>
+
+        <div class="ctrls">
+            <button class="cb on" data-f="all" onclick="setF('all')"><i class="fas fa-book-quran"></i> الكل</button>
+            <button class="cb" data-f="meccan" onclick="setF('meccan')"><i class="fas fa-kaaba"></i> مكية</button>
+            <button class="cb" data-f="medinan" onclick="setF('medinan')"><i class="fas fa-mosque"></i> مدنية</button>
+            <button class="cb" data-f="saved" onclick="setF('saved')"><i class="fas fa-bookmark"></i> المحفوظات</button>
+            <button class="cb gd" onclick="showPage('adhkarPage')"><i class="fas fa-hands-praying"></i> الأذكار</button>
+            <button class="cb" id="thm" onclick="toggleTheme()" aria-label="تبديل المظهر"><i class="fas fa-moon"></i></button>
+            <button class="cb" onclick="showPage('aboutPage')" aria-label="عن التطبيق"><i class="fas fa-circle-info"></i></button>
+        </div>
+
+        <div class="srch">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="search" id="sinp" placeholder="ابحث عن سورة باسمها أو رقمها..." oninput="handleSearch()" aria-label="بحث">
+        </div>
+        <div class="search-tabs">
+            <button class="search-tab on" id="tabSurahs" onclick="setSearchMode('surahs')">السور</button>
+            <button class="search-tab" id="tabAyahs" onclick="setSearchMode('ayahs')">البحث داخل الآيات</button>
+        </div>
+        <div class="search-results" id="searchResults"></div>
+        <div class="offline-note"><i class="fas fa-circle-check"></i> المصحف كامل داخل التطبيق ويعمل بدون إنترنت • التلاوة الصوتية تحتاج إنترنت</div>
+
+        <div id="list">
+            <div class="grid" id="sgrid"></div>
+            <div class="em hidden" id="nores"><i class="fas fa-magnifying-glass"></i><p>لم يتم العثور على نتائج</p></div>
+            <div class="em hidden" id="nosave"><i class="fas fa-bookmark"></i><p>لا توجد سور محفوظة</p></div>
+        </div>
+    </div>
+
+    <div id="reader">
+        <div class="rh">
+            <button class="rb" onclick="goHome()" aria-label="عودة"><i class="fas fa-arrow-right"></i></button>
+            <div class="rt"><h2 id="rname"></h2><p id="rmeta"></p></div>
+            <div class="ra">
+                <button class="rb" id="bkbtn" onclick="toggleBk()" aria-label="حفظ" title="حفظ السورة"><i class="far fa-bookmark"></i></button>
+                <button class="rb" id="donebtn" onclick="toggleDoneSurah()" aria-label="إتمام السورة" title="تحديد السورة كمقروءة"><i class="far fa-circle-check"></i></button>
+                <button class="rb" id="plbtn" onclick="togglePlay()" aria-label="تلاوة" title="تشغيل التلاوة"><i class="fas fa-play"></i></button>
+            </div>
+        </div>
+        <div class="ap" id="aplayer">
+            <div class="apl"><i class="fas fa-headphones"></i><span id="reciterLabel"></span></div>
+            <div style="display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap">
+                <label for="reciterSel" style="font-size:13px">اختر القارئ:</label>
+                <select id="reciterSel" onchange="changeReciter(this.value)"></select>
+            </div>
+            <audio id="audio" controls preload="none"></audio>
+        </div>
+        <div class="bism" id="bism">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+        <div class="vs" id="vcont"></div>
+    </div>
+
+    <section id="adhkarPage" class="page" aria-label="الأذكار">
+        <div class="page-head">
+            <button class="rb" onclick="goHome()" aria-label="عودة"><i class="fas fa-arrow-right"></i></button>
+            <h2>الأذكار</h2>
+            <div style="width:40px"></div>
+        </div>
+        <div class="offline-note"><i class="fas fa-circle-check"></i> نصوص الأذكار تعمل بدون إنترنت • اضغط زر العدّاد بعد كل مرة تقرأ فيها الذكر</div>
+        <div class="adhkar-tabs" id="adhkarTabs"></div>
+        <div id="adhkarList"></div>
+        <audio id="adhkarAudio" preload="none"></audio>
+    </section>
+
+    <section id="aboutPage" class="page about" aria-label="عن التطبيق">
+        <div class="page-head">
+            <button class="rb" onclick="goHome()" aria-label="عودة"><i class="fas fa-arrow-right"></i></button>
+            <h2>عن التطبيق</h2>
+            <div style="width:40px"></div>
+        </div>
+        <p>تطبيق مجاني بالكامل وبدون إعلانات، صدقة جارية. لا يطلب تسجيل دخول ولا يجمع أي بيانات شخصية؛ كل ما تحفظه (الختمة، المحفوظات، موضع القراءة) يبقى على جهازك فقط.</p>
+        <h3>المصادر</h3>
+        <p>نص القرآن الكريم (الرسم العثماني): <a href="https://tanzil.net" target="_blank" rel="noopener">مشروع تنزيل Tanzil.net</a> — منشور برخصة المشاع الإبداعي (نسب المصنف 3.0)، ويُنقل حرفيًا دون أي تعديل.</p>
+        <p>التلاوات الصوتية: <a href="https://alquran.cloud" target="_blank" rel="noopener">Al Quran Cloud / Islamic Network</a> وتُشغَّل عبر الإنترنت.</p>
+        <p>الخطوط: Amiri Quran و Noto Naskh Arabic (رخصة SIL المفتوحة). الأيقونات: Font Awesome Free.</p>
+        <p>الأذكار من كتاب حصن المسلم.</p>
+        <h3>الخصوصية</h3>
+        <p><a href="privacy.html">سياسة الخصوصية</a></p>
+        <p style="color:var(--fg2);font-size:12px">الإصدار <span id="appVersion"></span></p>
+    </section>
+
+    <div class="dedication">صدقة جارية على روح أبي وأمي، رحمهما الله وأسكنهما فسيح جناتهما</div>
+</div>
+
+<div class="bot" id="bbar">
+    <button class="nb" onclick="navS(-1)"><i class="fas fa-arrow-right"></i><span>السابقة</span></button>
+    <div class="fc">
+        <button onclick="chFont(-2)" aria-label="تصغير"><i class="fas fa-minus"></i></button>
+        <span id="flbl">24</span>
+        <button onclick="chFont(2)" aria-label="تكبير"><i class="fas fa-plus"></i></button>
+    </div>
+    <button class="nb" onclick="navS(1)"><span>التالية</span><i class="fas fa-arrow-left"></i></button>
+</div>
+
+<div class="tst" id="toast" role="status"></div>
+
+<script src="quran-text.js"></script>
+<script src="adhkar.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
