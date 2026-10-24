@@ -1,6 +1,6 @@
 /* يحفظ ملفات التطبيق على الجهاز حتى يعمل بدون إنترنت،
    ويحفظ آخر التلاوات التي استمعت لها لتعمل بدون إنترنت أيضاً. */
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.1.0';
 const APP_CACHE = 'quran-app-' + VERSION;
 const AUDIO_CACHE = 'quran-audio-v1';
 const AUDIO_MAX = 400; // عدد ملفات الآيات المحفوظة كحد أقصى
@@ -34,7 +34,8 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
 
   // ملفات التلاوة: من الذاكرة إن وُجدت، وإلا من الإنترنت ثم تُحفظ
-  if (url.hostname === 'cdn.islamic.network') {
+  // ملفات التلاوة التي يشغّلها المشغّل مباشرة (التحميل الكامل للسور يُحفظ من الصفحة نفسها)
+  if (url.hostname === 'cdn.islamic.network' && req.destination === 'audio') {
     if (req.headers.get('range')) return; // طلبات التقديم والتأخير تذهب للإنترنت مباشرة
     e.respondWith(caches.open(AUDIO_CACHE).then(async c => {
       const hit = await c.match(req.url);
@@ -46,6 +47,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
+  if (url.hostname === 'cdn.islamic.network') return;
   if (url.origin !== self.location.origin) return;
 
   // صفحات التطبيق: من الإنترنت إن أمكن (لتصل التحديثات)، وإلا من الذاكرة

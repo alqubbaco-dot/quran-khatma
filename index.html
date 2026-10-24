@@ -94,9 +94,9 @@
         .rh{display:flex;align-items:center;gap:10px;padding:14px 0;margin-bottom:6px;border-bottom:1px solid var(--bd)}
         .rb{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--bd);background:var(--cd);
             color:var(--fg);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s;flex-shrink:0}
-        .rb:hover{background:var(--ac);color:#fff;border-color:var(--ac)}
+        @media(hover:hover){.rb:hover{background:var(--ac);color:#fff;border-color:var(--ac)}}
         .rt{flex:1;text-align:center;min-width:0}
-        .rt h2{font-family:'Amiri Quran',serif;font-size:24px;color:var(--gd);font-weight:400}
+        .rt h2{font-family:'Amiri Quran',serif;font-size:24px;color:var(--gd);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .rt p{font-size:12px;color:var(--fg2)}
         .ra{display:flex;gap:6px}
 
@@ -191,6 +191,26 @@
         .adhkar-action.playing{background:var(--gd);color:#fff;border-color:var(--gd)}
         .adhkar-action[disabled]{opacity:.45;cursor:default;background:var(--bg);color:var(--fg2)}
 
+        .sm .ac{color:var(--gd)}
+        #dlbtn.dl-ok{color:var(--ok);border-color:var(--ok)}
+        .dlpct{font-size:11px;font-weight:700;color:var(--ac)}
+        .dl-card{background:var(--cd);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 3px 12px var(--sh);display:flex;flex-direction:column;gap:12px}
+        .dl-rec{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .dl-rec select{flex:1;min-width:190px;padding:9px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--fg);font-family:inherit;font-size:14px}
+        .dl-summary{font-size:14px}.dl-summary b{color:var(--gd);font-size:18px}
+        .dl-ptext{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--fg2)}
+        .dl-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .dl-actions .cb[disabled]{opacity:.6;cursor:default}
+        .dl-hint{font-size:12px;color:var(--fg2);line-height:1.9}
+        .dl-row{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--cd);border:1px solid var(--bd);border-radius:12px;margin-bottom:7px}
+        .dl-row .sn{width:34px;height:34px;font-size:12px}
+        .dl-name{font-family:'Amiri Quran',serif;font-size:17px;line-height:1.5}
+        .dl-act{border:1px solid var(--bd);background:var(--bg);color:var(--fg);border-radius:10px;padding:7px 12px;font-family:inherit;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;flex:none}
+        .dl-act.ok{color:var(--ok);border-color:var(--ok)}
+        .dl-act[disabled]{opacity:.45;cursor:default}
+        .dl-chip{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:150;display:none;align-items:center;gap:6px;border:1px solid var(--gd);background:var(--cd);color:var(--gd);border-radius:99px;padding:8px 14px;font-family:inherit;font-size:12px;box-shadow:0 4px 16px var(--sh2);cursor:pointer}
+        .dl-chip.show{display:inline-flex}
+        body.reading .dl-chip{bottom:calc(76px + env(safe-area-inset-bottom))}
         .about p{font-size:14px;line-height:2;margin-bottom:10px}
         .about h3{color:var(--gd);font-size:16px;margin:16px 0 6px}
         .about a{color:var(--ac)}
@@ -201,6 +221,7 @@
             .grid{grid-template-columns:1fr}.ctrls{gap:5px}.cb{padding:7px 11px;font-size:12px}
             h1{font-size:30px}.bot{gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom))}.nb span{display:none}.snn{font-size:17px}
             .part-grid{grid-template-columns:repeat(4,1fr)}.adhkar-text{font-size:20px}
+            .rh{gap:6px}.ra{gap:4px}.rb{width:36px;height:36px;font-size:14px}.rt h2{font-size:20px}
         }
         @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
     </style>
@@ -238,6 +259,7 @@
             <button class="cb" data-f="medinan" onclick="setF('medinan')"><i class="fas fa-mosque"></i> مدنية</button>
             <button class="cb" data-f="saved" onclick="setF('saved')"><i class="fas fa-bookmark"></i> المحفوظات</button>
             <button class="cb gd" onclick="showPage('adhkarPage')"><i class="fas fa-hands-praying"></i> الأذكار</button>
+            <button class="cb" onclick="showPage('downloadsPage')"><i class="fas fa-download"></i> تحميل التلاوات</button>
             <button class="cb" id="thm" onclick="toggleTheme()" aria-label="تبديل المظهر"><i class="fas fa-moon"></i></button>
             <button class="cb" onclick="showPage('aboutPage')" aria-label="عن التطبيق"><i class="fas fa-circle-info"></i></button>
         </div>
@@ -251,7 +273,7 @@
             <button class="search-tab" id="tabAyahs" onclick="setSearchMode('ayahs')">البحث داخل الآيات</button>
         </div>
         <div class="search-results" id="searchResults"></div>
-        <div class="offline-note"><i class="fas fa-circle-check"></i> المصحف كامل داخل التطبيق ويعمل بدون إنترنت • التلاوة الصوتية تحتاج إنترنت</div>
+        <div class="offline-note"><i class="fas fa-circle-check"></i> المصحف كامل داخل التطبيق ويعمل بدون إنترنت • للاستماع بدون إنترنت حمّل التلاوة من زر ⬇</div>
 
         <div id="list">
             <div class="grid" id="sgrid"></div>
@@ -267,6 +289,7 @@
             <div class="ra">
                 <button class="rb" id="bkbtn" onclick="toggleBk()" aria-label="حفظ" title="حفظ السورة"><i class="far fa-bookmark"></i></button>
                 <button class="rb" id="donebtn" onclick="toggleDoneSurah()" aria-label="إتمام السورة" title="تحديد السورة كمقروءة"><i class="far fa-circle-check"></i></button>
+                <button class="rb" id="dlbtn" onclick="toggleSurahDownload()" aria-label="تحميل التلاوة" title="تحميل تلاوة السورة للاستماع بدون إنترنت"><i class="fas fa-download"></i></button>
                 <button class="rb" id="plbtn" onclick="togglePlay()" aria-label="تلاوة" title="تشغيل التلاوة"><i class="fas fa-play"></i></button>
             </div>
         </div>
@@ -292,6 +315,29 @@
         <div class="adhkar-tabs" id="adhkarTabs"></div>
         <div id="adhkarList"></div>
         <audio id="adhkarAudio" preload="none"></audio>
+    </section>
+
+    <section id="downloadsPage" class="page" aria-label="تحميل التلاوات">
+        <div class="page-head">
+            <button class="rb" onclick="goHome()" aria-label="عودة"><i class="fas fa-arrow-right"></i></button>
+            <h2>تحميل التلاوات</h2>
+            <div style="width:40px"></div>
+        </div>
+        <div class="offline-note"><i class="fas fa-headphones"></i> حمّل التلاوة مرة وحدة، وبعدها تسمعها بدون إنترنت</div>
+        <div class="dl-card">
+            <div class="dl-rec"><label for="dlReciter">القارئ:</label><select id="dlReciter" onchange="changeReciter(this.value)"></select></div>
+            <p class="dl-summary" id="dlSummary"></p>
+            <div class="dl-progress hidden" id="dlProgress">
+                <div class="ktrack"><div class="kfill" id="dlFill"></div></div>
+                <div class="dl-ptext"><span id="dlText"></span><button class="kreset" onclick="cancelDownload()">إيقاف التحميل</button></div>
+            </div>
+            <div class="dl-actions">
+                <button class="cb gd" id="dlAllBtn" onclick="downloadAllConfirm()"><i class="fas fa-download"></i> تحميل القرآن كاملاً</button>
+                <button class="cb hidden" id="dlDelAll" onclick="deleteAllConfirm()"><i class="fas fa-trash-can"></i> حذف تحميلات هذا القارئ</button>
+            </div>
+            <p class="dl-hint">نصيحة: حمّل على الواي فاي وخلّ التطبيق مفتوحاً لحد ما يكمل. إذا انقطع التحميل، اضغط مرة ثانية ويكمل من حيث توقف.</p>
+        </div>
+        <div id="dlList"></div>
     </section>
 
     <section id="aboutPage" class="page about" aria-label="عن التطبيق">
@@ -324,6 +370,7 @@
     <button class="nb" onclick="navS(1)"><span>التالية</span><i class="fas fa-arrow-left"></i></button>
 </div>
 
+<button class="dl-chip" id="dlChip" onclick="showPage('downloadsPage')"><i class="fas fa-download"></i> <span></span></button>
 <div class="tst" id="toast" role="status"></div>
 
 <script src="quran-text.js"></script>

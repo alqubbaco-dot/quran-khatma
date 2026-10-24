@@ -1,5 +1,5 @@
 /* ===== القرآن الكريم — ختمة ===== */
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 /* ===== بيانات السور ===== */
 const S=[
@@ -81,12 +81,15 @@ function show(view){
     document.body.classList.toggle('reading',view==='reader');
     $('adhkarPage').classList.toggle('show',view==='adhkarPage');
     $('aboutPage').classList.toggle('show',view==='aboutPage');
+    $('downloadsPage').classList.toggle('show',view==='downloadsPage');
     if(view!=='reader')stopPlay();
     if(view!=='adhkarPage')stopAdhkarAudio();
+    refreshDlProgress();
 }
 function showPage(id){
     show(id); history.pushState({v:id},'');
     if(id==='adhkarPage')renderAdhkar();
+    if(id==='downloadsPage')refreshDlUI();
     window.scrollTo({top:0});
 }
 function goHome(){
@@ -99,7 +102,7 @@ function homeView(){
 window.addEventListener('popstate',e=>{
     const v=e.state&&e.state.v;
     if(v==='reader'&&e.state.s){openS(e.state.s,{noPush:true});}
-    else if(v==='adhkarPage'||v==='aboutPage'){show(v);if(v==='adhkarPage')renderAdhkar();}
+    else if(v==='adhkarPage'||v==='aboutPage'||v==='downloadsPage'){show(v);if(v==='adhkarPage')renderAdhkar();if(v==='downloadsPage')refreshDlUI();}
     else homeView();
 });
 
@@ -184,7 +187,7 @@ function render(){
         return `<div class="sc" style="animation-delay:${Math.min(i,30)*.012}s" onclick="openS(${s.n})" tabindex="0" role="button" aria-label="سورة ${s.nm}">
             <div class="sn">${s.n}</div>
             <div class="si"><div class="snn">${s.nm}</div>
-                <div class="sm"><span>${s.t==='meccan'?'مكية':'مدنية'}</span><span>${s.a} آية</span>${isD?'<span class="ck"><i class="fas fa-circle-check"></i> مقروءة</span>':''}</div></div>
+                <div class="sm"><span>${s.t==='meccan'?'مكية':'مدنية'}</span><span>${s.a} آية</span>${isD?'<span class="ck"><i class="fas fa-circle-check"></i> مقروءة</span>':''}${isDownloaded(s.n)?'<span class="ac"><i class="fas fa-headphones"></i> محمّلة</span>':''}</div></div>
             <div class="sa"><button onclick="event.stopPropagation();toggleBkList(${s.n})" class="${isB?'bk':''}" aria-label="حفظ"><i class="${isB?'fas':'far'} fa-bookmark"></i></button></div>
         </div>`;
     }).join('');
@@ -202,7 +205,7 @@ function openS(num,opt={}){
     $('rname').textContent='سورة '+s.nm;
     $('rmeta').textContent=(s.t==='meccan'?'مكية':'مدنية')+' • '+s.a+' آية';
     $('bism').style.display=(num===1||num===9)?'none':'block';
-    updateBkBtn(); updateDoneBtn();
+    updateBkBtn(); updateDoneBtn(); updateDlBtn();
     const c=$('vcont'); let h='';
     const verses=window.QURAN_TEXT[num-1];
     const lastHere=lastRead&&lastRead.surah===num?lastRead.ayah:0;
@@ -301,16 +304,18 @@ let reciter=store.get('q_reciter','ar.alafasy');
 if(reciter==='ar.abdulbasit')reciter='ar.abdulbasitmurattal';
 if(!RECITERS[reciter])reciter='ar.alafasy';
 const reciterInfo=()=>RECITERS[reciter];
-const audioUrl=g=>'https://cdn.islamic.network/quran/audio/'+reciterInfo().bitrate+'/'+reciter+'/'+g+'.mp3';
+const audioUrl=(g,r=reciter)=>'https://cdn.islamic.network/quran/audio/'+RECITERS[r].bitrate+'/'+r+'/'+g+'.mp3';
 let playing=false, playQueue=[], playIndex=0, playToken=0;
 
 function initReciters(){
-    $('reciterSel').innerHTML=Object.entries(RECITERS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('');
+    const opts=Object.entries(RECITERS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('');
+    $('reciterSel').innerHTML=opts; $('dlReciter').innerHTML=opts;
     syncReciterUI();
 }
-function syncReciterUI(){ $('reciterSel').value=reciter; $('reciterLabel').textContent='تلاوة الشيخ '+reciterInfo().name; }
+function syncReciterUI(){ $('reciterSel').value=reciter; $('dlReciter').value=reciter; $('reciterLabel').textContent='تلاوة الشيخ '+reciterInfo().name; }
 function changeReciter(v){
     if(!RECITERS[v])return; const was=playing; stopPlay(); reciter=v; store.set('q_reciter',v); syncReciterUI();
+    loadDownloaded(v); refreshDlUI(); render();
     toast('تم اختيار '+reciterInfo().name); if(was&&curS)togglePlay();
 }
 function buildQueue(s,from){
@@ -323,27 +328,33 @@ function highlightNow(a){
     document.querySelectorAll('.vv.now').forEach(x=>x.classList.remove('now'));
     if(a){const el=$('ayah-'+a); if(el){el.classList.add('now'); el.scrollIntoView({behavior:'smooth',block:'center'});}}
 }
-function playNext(token){
+async function playNext(token){
     if(token!==playToken||!playing)return;
     const au=$('audio');
     if(playIndex>=playQueue.length){const nm=curS.nm;stopPlay();toast('اكتملت تلاوة سورة '+nm);return;}
     const it=playQueue[playIndex]; highlightNow(it.ayah);
-    au.src=audioUrl(it.g);
-    const p=au.play(); if(p&&p.catch)p.catch(err=>{ if(token===playToken&&err.name!=='AbortError'){toast('تعذر تشغيل التلاوة، تحقق من الإنترنت');stopPlay();} });
-    // تجهيز الآية التالية مسبقاً لتقليل التقطيع
-    const nx=playQueue[playIndex+1]; if(nx){const pre=new Audio();pre.preload='auto';pre.src=audioUrl(nx.g);}
+    const src=await resolveAudio(it.g);
+    if(token!==playToken||!playing)return;
+    au.src=src;
+    const p=au.play(); if(p&&p.catch)p.catch(err=>{ if(token===playToken&&err.name!=='AbortError'){toast(audioErrorMsg());stopPlay();} });
+    // تجهيز الآية التالية مسبقاً لتقليل التقطيع (فقط إذا كانت السورة غير محمّلة)
+    const nx=playQueue[playIndex+1]; if(nx&&!isDownloaded(curS.n)&&navigator.onLine){const pre=new Audio();pre.preload='auto';pre.src=audioUrl(nx.g);}
+}
+function audioErrorMsg(){
+    if(curS&&!isDownloaded(curS.n))return 'تعذر تشغيل التلاوة. بدون إنترنت تحتاج تحمّل السورة أولاً من زر التحميل ⬇';
+    return 'تعذر تشغيل التلاوة';
 }
 function togglePlay(){
     if(!curS)return;
     if(playing){stopPlay();return;}
-    if(!navigator.onLine){toast('التلاوة الصوتية تحتاج اتصالاً بالإنترنت');}
+    if(!navigator.onLine&&!isDownloaded(curS.n)){toast('أنت بدون إنترنت وهذه السورة غير محمّلة. اضغط زر التحميل ⬇ عندما يتوفر الإنترنت لتسمعها بعدها بدون إنترنت');return;}
     // يبدأ من موضع القراءة إذا كان محفوظاً في هذه السورة
     const from=(lastRead&&lastRead.surah===curS.n&&lastRead.ayah>1)?lastRead.ayah:1;
     playQueue=buildQueue(curS.n,from); playIndex=0; const token=++playToken; playing=true;
     const au=$('audio'), pb=$('plbtn');
     $('aplayer').classList.add('show'); pb.classList.add('ply'); pb.querySelector('i').className='fas fa-pause';
     au.onended=()=>{if(token!==playToken)return; playIndex++; playNext(token);};
-    au.onerror=()=>{if(token!==playToken||!playing)return; toast('تعذر تحميل ملف التلاوة، تحقق من الإنترنت'); stopPlay();};
+    au.onerror=()=>{if(token!==playToken||!playing)return; toast(audioErrorMsg()); stopPlay();};
     if(from>1)toast('التلاوة من الآية '+from+' (موضع القراءة)');
     playNext(token);
 }
@@ -395,26 +406,193 @@ function playDhikr(i){
     const key=adhkarTab+':'+i, d=window.ADHKAR[adhkarTab][i];
     if(adhkarPlay.id===key){stopAdhkarAudio();renderAdhkar();return;}
     stopAdhkarAudio();
-    let urls=[];
-    if(d.q){d.q.forEach(([s,f,t])=>{ if(d.basmala)urls.push(audioUrl(1)); for(let a=f;a<=t;a++)urls.push(audioUrl(globalAyah(s,a))); });}
-    else if(d.audio)urls=[d.audio];
-    if(!urls.length)return;
+    let items=[];
+    if(d.q){d.q.forEach(([s,f,t])=>{ if(d.basmala)items.push(1); for(let a=f;a<=t;a++)items.push(globalAyah(s,a)); });}
+    else if(d.audio)items=[d.audio];
+    if(!items.length)return;
     const token=++adhkarPlay.token; adhkarPlay.id=key; let k=0;
     const au=$('adhkarAudio');
     const next=()=>{
         if(token!==adhkarPlay.token)return;
-        if(k>=urls.length){adhkarPlay.id=null;renderAdhkar();return;}
-        au.src=urls[k++]; const p=au.play();
-        if(p&&p.catch)p.catch(err=>{if(token===adhkarPlay.token&&err.name!=='AbortError'){toast('تعذر تشغيل الصوت، تحقق من الإنترنت');stopAdhkarAudio();renderAdhkar();}});
+        if(k>=items.length){adhkarPlay.id=null;renderAdhkar();return;}
+        const it=items[k++];
+        (typeof it==='number'?resolveAudio(it):Promise.resolve(it)).then(src=>{
+        if(token!==adhkarPlay.token)return;
+        au.src=src; const p=au.play();
+        if(p&&p.catch)p.catch(err=>{if(token===adhkarPlay.token&&err.name!=='AbortError'){toast(adhkarAudioErr());stopAdhkarAudio();renderAdhkar();}});
+        });
     };
     au.onended=next;
-    au.onerror=()=>{if(token!==adhkarPlay.token)return;toast('تعذر تشغيل الصوت، تحقق من الإنترنت');stopAdhkarAudio();renderAdhkar();};
+    au.onerror=()=>{if(token!==adhkarPlay.token)return;toast(adhkarAudioErr());stopAdhkarAudio();renderAdhkar();};
     renderAdhkar(); next();
 }
 function stopAdhkarAudio(){
     adhkarPlay.token++; adhkarPlay.id=null;
     const au=$('adhkarAudio'); if(au){au.onended=null;au.onerror=null;au.pause();au.removeAttribute('src');au.load();}
 }
+
+/* ===== تحميل التلاوات للاستماع بدون إنترنت =====
+   في تطبيق الأندرويد: الملفات تُحفظ داخل التطبيق عن طريق QuranNative (AudioStore.java).
+   في المتصفح: تُحفظ في ذاكرة المتصفح (Cache Storage). */
+const NATIVE=window.QuranNative||null;
+const LOCAL_AUDIO='https://appassets.androidplatform.net/audio/';
+const RECITER_MB={'ar.alafasy':1100,'ar.abdulbasitmurattal':2300,'ar.minshawi':1300}; // حجم تقريبي للمصحف كاملاً
+const TEXT_LEN=window.QURAN_TEXT.map(v=>v.reduce((n,t)=>n+t.length,0));
+const TEXT_TOTAL=TEXT_LEN.reduce((a,b)=>a+b,0);
+const surahMB=(s,r=reciter)=>RECITER_MB[r]*TEXT_LEN[s-1]/TEXT_TOTAL;
+const fmtMB=mb=>mb>=1000?(mb/1000).toFixed(1)+' غيغابايت':(mb<1?'أقل من 1 ميغابايت':Math.round(mb)+' ميغابايت');
+const surahOf=g=>{let lo=1,hi=114;while(lo<hi){const m=(lo+hi+1)>>1;if(OFF[m-1]<g)lo=m;else hi=m-1;}return lo;};
+const DL_CACHE=r=>'quran-dl-'+r;
+let dlState={}, dlJob=null, blobUrls=[];
+
+function dlSet(r=reciter){return dlState[r]||(dlState[r]=new Set());}
+function loadDownloaded(r=reciter){
+    if(NATIVE){try{dlState[r]=new Set(JSON.parse(NATIVE.downloaded(r)));}catch(e){dlState[r]=new Set();}}
+    else dlState[r]=new Set(store.get('q_dl_'+r,[]));
+    return dlState[r];
+}
+function saveWebDl(r){ if(!NATIVE)store.set('q_dl_'+r,[...dlSet(r)]); }
+function isDownloaded(s,r=reciter){return dlSet(r).has(s);}
+function surahFiles(s){const a=[];if(s!==1&&s!==9)a.push(1);for(let i=1;i<=S[s-1].a;i++)a.push(globalAyah(s,i));return a;}
+
+/* رابط ملف الآية: من الجهاز إذا كانت محمّلة، وإلا من الإنترنت */
+async function resolveAudio(g){
+    const have=g===1?dlSet().size>0:isDownloaded(surahOf(g));
+    if(have){
+        if(NATIVE)return LOCAL_AUDIO+reciter+'/'+g+'.mp3';
+        try{
+            const c=await caches.open(DL_CACHE(reciter)); const r=await c.match(audioUrl(g));
+            if(r){const u=URL.createObjectURL(await r.blob()); blobUrls.push(u); if(blobUrls.length>8)URL.revokeObjectURL(blobUrls.shift()); return u;}
+        }catch(e){}
+    }
+    return audioUrl(g);
+}
+function adhkarAudioErr(){ return navigator.onLine?'تعذر تشغيل الصوت':'بدون إنترنت: حمّل سورة البقرة والمعوذات من صفحة «تحميل التلاوات» لتسمع هذه الأذكار'; }
+
+function startDownload(surahs){
+    if(dlJob){toast('يوجد تحميل جارٍ، انتظر حتى ينتهي أو أوقفه');return;}
+    surahs=surahs.filter(s=>!isDownloaded(s));
+    if(!surahs.length){toast('محمّلة مسبقاً');return;}
+    if(!navigator.onLine){toast('التحميل يحتاج اتصالاً بالإنترنت');return;}
+    const total=surahs.reduce((n,s)=>n+surahFiles(s).length,0);
+    dlJob={reciter,surahs,done:0,total,cancelled:false};
+    refreshDlUI();
+    if(NATIVE){
+        try{NATIVE.download(reciter,String(RECITERS[reciter].bitrate),JSON.stringify(surahs.map(s=>[s,surahFiles(s)])));}
+        catch(e){finishDl(false,'تعذر بدء التحميل');}
+    }else{
+        try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
+        webDownload(dlJob);
+    }
+}
+async function webDownload(job){
+    let cache;
+    try{cache=await caches.open(DL_CACHE(job.reciter));}catch(e){finishDl(false,'التحميل غير مدعوم في هذا المتصفح. استخدم تطبيق الأندرويد');return;}
+    for(const s of job.surahs){
+        for(const g of surahFiles(s)){
+            if(job.cancelled){finishDl(false,null,true);return;}
+            const url=audioUrl(g,job.reciter);
+            if(!(await cache.match(url))){
+                let ok=false;
+                for(let i=0;i<3&&!ok&&!job.cancelled;i++){
+                    try{const r=await fetch(url,{mode:'cors'}); if(r.ok){await cache.put(url,r); ok=true;}}catch(e){}
+                    if(!ok)await new Promise(res=>setTimeout(res,800*(i+1)));
+                }
+                if(job.cancelled){finishDl(false,null,true);return;}
+                if(!ok){finishDl(false,'تعذر تحميل بعض الملفات. تحقق من الإنترنت وحاول مرة أخرى (يكمل من حيث توقف)');return;}
+            }
+            job.done++; refreshDlProgress();
+        }
+        dlSet(job.reciter).add(s); saveWebDl(job.reciter); onSurahDownloaded();
+    }
+    finishDl(true);
+}
+/* أحداث التحميل من تطبيق الأندرويد */
+window.__audioEvt=function(e){
+    if(!dlJob)return;
+    if(e.t==='p'){dlJob.done=e.done; dlJob.total=e.total; refreshDlProgress();}
+    else if(e.t==='s'){dlSet(dlJob.reciter).add(e.s); onSurahDownloaded();}
+    else if(e.t==='e'){finishDl(!!e.ok, e.ok?null:(e.err==='space'?'المساحة غير كافية على الجهاز':'تعذر تحميل بعض الملفات. تحقق من الإنترنت وحاول مرة أخرى (يكمل من حيث توقف)'), !!e.cancelled);}
+};
+function onSurahDownloaded(){ refreshDlUI(); if($('home')&&!$('home').classList.contains('hidden'))render(); }
+function finishDl(ok,err,cancelled){
+    const job=dlJob; dlJob=null; refreshDlUI(); render();
+    if(!job)return;
+    if(cancelled)toast('تم إيقاف التحميل');
+    else if(ok)toast(job.surahs.length===1?'تم تحميل سورة '+S[job.surahs[0]-1].nm+' ✓ تقدر تسمعها بدون إنترنت':'اكتمل تحميل '+job.surahs.length+' سورة ✓');
+    else toast(err||'تعذر التحميل');
+}
+function cancelDownload(){ if(!dlJob)return; dlJob.cancelled=true; if(NATIVE)try{NATIVE.cancel();}catch(e){} }
+async function deleteSurahAudio(s,r=reciter){
+    const files=surahFiles(s).filter(g=>g!==1);
+    if(NATIVE){try{NATIVE.remove(r,JSON.stringify(files),s);}catch(e){}}
+    else{try{const c=await caches.open(DL_CACHE(r)); await Promise.all(files.map(g=>c.delete(audioUrl(g,r))));}catch(e){}}
+    dlSet(r).delete(s); saveWebDl(r); refreshDlUI(); render();
+    toast('تم حذف تلاوة سورة '+S[s-1].nm+' من الجهاز');
+}
+async function deleteAllAudio(r=reciter){
+    if(NATIVE){try{NATIVE.removeAll(r);}catch(e){}}
+    else{try{await caches.delete(DL_CACHE(r));}catch(e){}}
+    dlState[r]=new Set(); saveWebDl(r); refreshDlUI(); render();
+    toast('تم حذف كل تحميلات '+RECITERS[r].name);
+}
+
+/* زر التحميل في صفحة السورة */
+function updateDlBtn(){
+    if(!curS)return; const b=$('dlbtn'); if(!b)return; const s=curS.n;
+    b.classList.remove('dl-ok');
+    if(dlJob&&dlJob.reciter===reciter&&dlJob.surahs.includes(s)){
+        b.innerHTML='<span class="dlpct">'+Math.floor(dlJob.done/dlJob.total*100)+'%</span>'; b.title='جاري التحميل • اضغط للإيقاف';
+    }else if(isDownloaded(s)){
+        b.innerHTML='<i class="fas fa-headphones"></i>'; b.classList.add('dl-ok'); b.title='التلاوة محمّلة وتعمل بدون إنترنت • اضغط للحذف';
+    }else{
+        b.innerHTML='<i class="fas fa-download"></i>'; b.title='تحميل تلاوة السورة للاستماع بدون إنترنت';
+    }
+}
+function toggleSurahDownload(){
+    if(!curS)return; const s=curS.n;
+    if(dlJob){ if(dlJob.reciter===reciter&&dlJob.surahs.includes(s))cancelDownload(); else toast('يوجد تحميل جارٍ، انتظر حتى ينتهي'); return; }
+    if(isDownloaded(s)){ if(confirm('حذف تلاوة سورة '+curS.nm+' بصوت '+reciterInfo().name+' من الجهاز؟'))deleteSurahAudio(s); return; }
+    startDownload([s]);
+    if(dlJob)toast('جاري تحميل سورة '+curS.nm+' بصوت '+reciterInfo().name+' (حوالي '+fmtMB(surahMB(s))+')');
+}
+
+/* صفحة تحميل التلاوات */
+function remainingMB(){ let mb=0; for(let s=1;s<=114;s++)if(!isDownloaded(s))mb+=surahMB(s); return mb; }
+function refreshDlProgress(){
+    const on=!!dlJob, pct=on?Math.floor(dlJob.done/Math.max(1,dlJob.total)*100):0;
+    const p=$('dlProgress'); if(p)p.classList.toggle('hidden',!on);
+    if(on){
+        $('dlFill').style.width=pct+'%';
+        $('dlText').textContent=(dlJob.surahs.length===1?'سورة '+S[dlJob.surahs[0]-1].nm:'تحميل '+dlJob.surahs.length+' سورة')+' • '+pct+'% • '+RECITERS[dlJob.reciter].name;
+    }
+    const chip=$('dlChip');
+    if(chip){ chip.classList.toggle('show',on&&!$('downloadsPage').classList.contains('show')); if(on)chip.querySelector('span').textContent='جاري التحميل '+pct+'%'; }
+    updateDlBtn();
+}
+function refreshDlUI(){
+    refreshDlProgress();
+    const list=$('dlList'); if(!list)return;
+    const n=dlSet().size, rem=remainingMB();
+    $('dlSummary').innerHTML='<b>'+n+'</b> من 114 سورة محمّلة بصوت '+reciterInfo().name;
+    $('dlAllBtn').innerHTML='<i class="fas fa-download"></i> '+(n===114?'القرآن كامل محمّل ✓':(n?'تحميل باقي السور':'تحميل القرآن كاملاً')+' (حوالي '+fmtMB(rem)+')');
+    $('dlAllBtn').disabled=n===114||!!dlJob;
+    $('dlDelAll').classList.toggle('hidden',n===0);
+    if(!$('downloadsPage').classList.contains('show'))return;
+    list.innerHTML=S.map(s=>{
+        const d=isDownloaded(s.n), busy=dlJob&&dlJob.reciter===reciter&&dlJob.surahs.includes(s.n)&&!d;
+        return `<div class="dl-row"><span class="sn">${s.n}</span><div class="si"><div class="dl-name">${s.nm}</div><div class="sm">${fmtMB(surahMB(s.n))}</div></div>`+
+          (d?`<button class="dl-act ok" onclick="if(confirm('حذف تلاوة سورة ${s.nm}؟'))deleteSurahAudio(${s.n})" aria-label="حذف"><i class="fas fa-circle-check"></i> محمّلة</button>`
+           :busy?`<button class="dl-act" onclick="cancelDownload()"><i class="fas fa-spinner fa-spin"></i> إيقاف</button>`
+           :`<button class="dl-act" onclick="startDownload([${s.n}])" ${dlJob?'disabled':''}><i class="fas fa-download"></i> تحميل</button>`)+`</div>`;
+    }).join('');
+}
+function downloadAllConfirm(){
+    const rem=remainingMB();
+    if(confirm('سيتم تحميل '+(dlSet().size?'باقي السور':'القرآن كاملاً')+' بصوت '+reciterInfo().name+'، الحجم حوالي '+fmtMB(rem)+'.\nيُفضّل استخدام الواي فاي وإبقاء التطبيق مفتوحاً حتى ينتهي.\nهل تريد المتابعة؟'))
+        startDownload(S.map(s=>s.n));
+}
+function deleteAllConfirm(){ if(confirm('حذف كل التلاوات المحمّلة بصوت '+reciterInfo().name+'؟'))deleteAllAudio(); }
 
 /* ===== الوضع الليلي ===== */
 function applyTheme(){
@@ -441,7 +619,7 @@ document.addEventListener('keydown',e=>{
 /* ===== بدء التطبيق ===== */
 (function init(){
     $('appVersion').textContent=APP_VERSION;
-    applyTheme(); initReciters(); renderParts(); renderKhatma(); renderContinue(); render();
+    applyTheme(); initReciters(); loadDownloaded(); renderParts(); renderKhatma(); renderContinue(); render();
     history.replaceState({v:null},'');
     if('serviceWorker' in navigator && location.protocol==='https:' && location.hostname!=='appassets.androidplatform.net'){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 })();
